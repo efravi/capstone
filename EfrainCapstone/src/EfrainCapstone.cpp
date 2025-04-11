@@ -94,7 +94,7 @@ void setup() {
 
 //Neopixel initialize
   pixel.begin();
-  pixel.setBrightness (35);
+  pixel.setBrightness (150);
   pixel.show();
 
 //Mic initialize
