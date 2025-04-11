@@ -12,11 +12,13 @@
 // Include Neopixel library and colors
 #include "neopixel.h"
 #include "Color.h"
+#include "Colors.h"
 #include "IoTClassroom_CNM.h"
 
-// Include OLED library
+// Include animation and OLED library
 #include "Adafruit_GFX.h"
 #include "Adafruit_SSD1306.h"
+#include "sleepanimation.h"
 
 // Include Adafruit Dashboard library
 #include "Adafruit_MQTT.h"
@@ -34,10 +36,12 @@ int micLED = A5;      // LED pin
 int digitalVal;       // digital readings
 int analogVal;        // analog readings
 
-// Variables and object for neopixel
+// Variables, functions and object for neopixels
 const int PIXELCOUNT = 15;
 int PIXNUM;
 int rainseg;
+
+void pixelFill(int startPixel, int endPixel, int hexColor);
 
 Adafruit_NeoPixel pixel (PIXELCOUNT, SPI1, WS2812B);
 
@@ -54,12 +58,13 @@ TCPClient TheClient;
 
 Adafruit_MQTT_SPARK mqtt(&TheClient,AIO_SERVER,AIO_SERVERPORT,AIO_USERNAME,AIO_KEY); 
 
-int subValue,subValue2;
+int subValue,subValue2,subValue3;
 
 // Setup Feeds to publish or subscribe to Adafruit
 // Notice MQTT paths for AIO follow the form: <username>/feeds/<feedname> 
 Adafruit_MQTT_Subscribe neoPixel = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/green-light-button");
 Adafruit_MQTT_Subscribe neoPixel2 = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/red-light-button");
+Adafruit_MQTT_Subscribe neoPixel3 = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/rainbow-button");
 Adafruit_MQTT_Publish pubFeed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/RandomNumber");
 
 void MQTT_connect();
@@ -105,7 +110,6 @@ void setup() {
 
 //OLED initialize
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
-
   display.display(); // show splashscreen
   delay(2000);
   display.clearDisplay();   // clears the screen and buffer
@@ -113,9 +117,12 @@ void setup() {
   //This is to initiate subscribing to Adafruit dashboard
   mqtt.subscribe(&neoPixel);
   mqtt.subscribe(&neoPixel2);
+  mqtt.subscribe(&neoPixel3);
 }
 
 void loop() {
+
+// Adafruit connect and ping
     MQTT_connect();
     MQTT_ping();
 
@@ -185,9 +192,42 @@ void loop() {
         }
       }
     }
+    if (subscription == &neoPixel3) {
+      subValue3 = atof((char *)neoPixel3.lastread);
+      Serial.printf ("%f\n", subValue3);
+      if(subValue3 == 1){
+        pixel.setPixelColor (0, red);
+        for(int c = 0; c < 7; c++){
+          int raincolor = rainbow[c];
+          int rainstart = (c * 2)+1;
+          int rainend = rainstart+2;
+          pixelFill (rainstart, rainend, raincolor);
+          pixel.setPixelColor (PIXNUM, raincolor);
+          pixel.show();
+        }
+          // OLED functions and animations
+          display.drawBitmap(0, 0,  bitmap_mvofoe, 128, 64, 1);
+          display.display();
+          display.clearDisplay();
+          display.drawBitmap(0, 0,  bitmap_e209b, 128, 64, 1);
+          display.display();
+          display.clearDisplay();
+          display.drawBitmap(0, 0,  bitmap_6iiz6q, 128, 64, 1);
+          display.display();
+          display.clearDisplay();
+      }
+      else{
+        for (PIXNUM = 0; PIXNUM < 16; PIXNUM ++){
+          pixel.setPixelColor (PIXNUM, black);
+          pixel.show();
+
+          display.display();
+          display.clearDisplay();
+        }
+      }
+    }   
   }
 }
-
 //FunctionS that connects to Adafruit
 void MQTT_connect() {
   int8_t ret;
@@ -223,3 +263,12 @@ bool MQTT_ping() {
   }
   return pingStatus;
 }
+
+void pixelFill(int startPixel, int endPixel, int hexColor){
+  for(int i =startPixel;i<=endPixel;i++){
+    pixel.setPixelColor(i, hexColor);
+    pixel.show();
+    delay(100);
+  }
+}
+
