@@ -181,10 +181,6 @@ int currentTime = millis();
     }
     myTimer.startTimer(3000);
   }
-    if(myTimer.isTimerReady()){
-    pixel.clear();
-    pixel.show();
-    }
 
   Adafruit_MQTT_Subscribe *subscription;
   while ((subscription = mqtt.readSubscription(100))) {
