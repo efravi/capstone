@@ -28,8 +28,9 @@
 // function for WiFi connection
 void getWiFi();
 
-// Variables for mic
+// Objects and Variables for mic
 
+IoTTimer myTimer;
 int digitalMicInt = D7;   // KY-037 digital interface
 int analogMicInt = A0;   // KY-037 analog interface
 int micLED = A5;      // LED pin
@@ -40,6 +41,10 @@ int analogVal;        // analog readings
 const int PIXELCOUNT = 15;
 int PIXNUM;
 int rainseg;
+int lastSecond;
+int currentTime;
+int color;
+byte buf [6];
 
 void pixelFill(int startPixel, int endPixel, int hexColor);
 
@@ -49,7 +54,7 @@ Adafruit_NeoPixel pixel (PIXELCOUNT, SPI1, WS2812B);
 const int OLED_RESET=-1;
 Adafruit_SSD1306 display(OLED_RESET);
 
-//Variables for Buttons and objects
+//Objects and Variables for Buttons
 Button REDBUTTON(D6), GREENBUTTON(D5);
 
 //Variable, Objects, Feeds for MQTT-Cloud
@@ -66,6 +71,7 @@ Adafruit_MQTT_Subscribe neoPixel = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "
 Adafruit_MQTT_Subscribe neoPixel2 = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/red-light-button");
 Adafruit_MQTT_Subscribe neoPixel3 = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/rainbow-button");
 Adafruit_MQTT_Publish pubFeed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/RandomNumber");
+Adafruit_MQTT_Subscribe mqttColor = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/colorpicker");
 
 void MQTT_connect();
 bool MQTT_ping();
@@ -118,7 +124,10 @@ void setup() {
   mqtt.subscribe(&neoPixel);
   mqtt.subscribe(&neoPixel2);
   mqtt.subscribe(&neoPixel3);
+  mqtt.subscribe(&mqttColor);
+
 }
+
 
 void loop() {
 
@@ -130,33 +139,52 @@ void loop() {
     digitalVal = digitalRead(digitalMicInt); 
   
     if(digitalVal == HIGH){
-      digitalWrite(micLED, HIGH); // Turn ON test LED
+    digitalWrite(micLED, HIGH); // Turn ON test LED
     }
     else{
       digitalWrite(micLED, LOW);  // Turn OFF test LED
     }
 
-// Read analog interface
+    // myTimer.startTimer(3000);
+    // if (myTimer.isTimerReady()){ 
+    // digitalWrite (micLED, LOW);
+    // myTimer.startTimer(3000);
+    // }
+
+    // Read analog interface
     analogVal = analogRead(analogMicInt);
     // Print analog value to serial
     Serial.println(analogVal); 
 
 //Neopixel, colors, buttons
- 
+
+int currentTime = millis();
+
   if(REDBUTTON.isClicked()){
     for (PIXNUM = 0; PIXNUM < 16; PIXNUM ++){
       pixel.setPixelColor (PIXNUM, red);
       pixel.show();
-      pixel.clear();
     }
   }
+  // if((currentTime - lastSecond)>2000){
+  //   lastSecond = millis();
+  //   pixel.setPixelColor (PIXNUM, black);
+  //   pixel.show();
+  //   pixel.clear();
+  //   }
+
   if(GREENBUTTON.isClicked()){
     for (PIXNUM = 0; PIXNUM < 16; PIXNUM ++){
       pixel.setPixelColor (PIXNUM, green);
       pixel.show();
-      pixel.clear();
     }
   }
+  // if((currentTime - lastSecond)>2000){
+  //   lastSecond = millis();
+  //   pixel.setPixelColor (PIXNUM, black);
+  //   pixel.show();
+  //   pixel.clear();
+  //   }
 
   Adafruit_MQTT_Subscribe *subscription;
   while ((subscription = mqtt.readSubscription(100))) {
@@ -225,7 +253,19 @@ void loop() {
           display.clearDisplay();
         }
       }
-    }   
+    } 
+    // if (subscription == &mqttColor) {
+    //   Serial.printf ("Received from Adafruit : %s \n", (char *)mqttColor.lastread);
+    //   memcpy (buf, &mqttColor.lastread[1], 6); // strip off the ’#’
+    //   Serial.printf ("Buffer: %s \n", (char *)buf);
+    //   color = strtol((char *)buf,NULL,16); // convert string to int (hex)
+    //   Serial.printf ("Buffer: 0x%02X \n",color);
+    //   }
+  
+    // for (PIXNUM = 0; PIXNUM < 17; PIXNUM ++){
+    //   pixel.setPixelColor (PIXNUM, color);
+    //   pixel.show();
+    // }  
   }
 }
 //FunctionS that connects to Adafruit
