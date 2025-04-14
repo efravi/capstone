@@ -165,8 +165,8 @@ int currentTime = millis();
       pixel.setPixelColor (PIXNUM, red);
       pixel.show();
     }
+    myTimer.startTimer(3000);
   }
-
   // if((currentTime - lastSecond)>2000){
   //   lastSecond = millis();
   //   pixel.setPixelColor (PIXNUM, black);
@@ -179,13 +179,12 @@ int currentTime = millis();
       pixel.setPixelColor (PIXNUM, green);
       pixel.show();
     }
-    if((currentTime - lastSecond)>2000){
-    lastSecond = millis();
-    pixel.setPixelColor (PIXNUM, black);
-    pixel.show();
-    pixel.clear();
-    }
+    myTimer.startTimer(3000);
   }
+    if(myTimer.isTimerReady()){
+    pixel.clear();
+    pixel.show();
+    }
 
   Adafruit_MQTT_Subscribe *subscription;
   while ((subscription = mqtt.readSubscription(100))) {
