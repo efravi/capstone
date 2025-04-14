@@ -19,6 +19,8 @@
 #include "Adafruit_GFX.h"
 #include "Adafruit_SSD1306.h"
 #include "sleepanimation.h"
+#include "cowoverhead.h"
+#include "raisedhand.h"
 
 // Include Adafruit Dashboard library
 #include "Adafruit_MQTT.h"
@@ -29,7 +31,6 @@
 void getWiFi();
 
 // Objects and Variables for mic
-
 IoTTimer myTimer;
 int digitalMicInt = D7;   // KY-037 digital interface
 int analogMicInt = A0;   // KY-037 analog interface
@@ -128,7 +129,6 @@ void setup() {
 
 }
 
-
 void loop() {
 
 // Adafruit connect and ping
@@ -166,6 +166,7 @@ int currentTime = millis();
       pixel.show();
     }
   }
+
   // if((currentTime - lastSecond)>2000){
   //   lastSecond = millis();
   //   pixel.setPixelColor (PIXNUM, black);
@@ -178,13 +179,13 @@ int currentTime = millis();
       pixel.setPixelColor (PIXNUM, green);
       pixel.show();
     }
+    if((currentTime - lastSecond)>2000){
+    lastSecond = millis();
+    pixel.setPixelColor (PIXNUM, black);
+    pixel.show();
+    pixel.clear();
+    }
   }
-  // if((currentTime - lastSecond)>2000){
-  //   lastSecond = millis();
-  //   pixel.setPixelColor (PIXNUM, black);
-  //   pixel.show();
-  //   pixel.clear();
-  //   }
 
   Adafruit_MQTT_Subscribe *subscription;
   while ((subscription = mqtt.readSubscription(100))) {
@@ -196,11 +197,17 @@ int currentTime = millis();
           pixel.setPixelColor (PIXNUM, green);
           pixel.show();
         }
+        display.drawBitmap(0, 0,  bitmap_v65em, 128, 64, 1);
+        display.display();
+        display.clearDisplay();
       }
       else{
         for (PIXNUM = 0; PIXNUM < 16; PIXNUM ++){
           pixel.setPixelColor (PIXNUM, black);
           pixel.show();
+
+          display.display();
+          display.clearDisplay();
         }
       }
     }
@@ -212,11 +219,17 @@ int currentTime = millis();
           pixel.setPixelColor (PIXNUM, red);
           pixel.show();
         }
+        display.drawBitmap(0, 0,  bitmap_21xftc, 128, 64, 1);
+        display.display();
+        display.clearDisplay();
       }
       else{
         for (PIXNUM = 0; PIXNUM < 16; PIXNUM ++){
           pixel.setPixelColor (PIXNUM, black);
           pixel.show();
+
+          display.display();
+          display.clearDisplay();
         }
       }
     }
