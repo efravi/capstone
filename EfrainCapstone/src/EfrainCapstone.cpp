@@ -19,6 +19,7 @@
 #include "Adafruit_GFX.h"
 #include "Adafruit_SSD1306.h"
 #include "sleepanimation.h"
+#include "cowreading.h"
 #include "cowoverhead.h"
 #include "raisedhand.h"
 
@@ -27,11 +28,12 @@
 #include "Adafruit_MQTT_SPARK.h"
 #include "credentials.h"
 
+IoTTimer redTimer, greenTimer, micTimer;
+
 // function for WiFi connection
 void getWiFi();
 
 // Objects and Variables for mic
-IoTTimer myTimer;
 int digitalMicInt = D7;   // KY-037 digital interface
 int analogMicInt = A0;   // KY-037 analog interface
 int micLED = A5;      // LED pin
@@ -45,6 +47,8 @@ int rainseg;
 int lastSecond;
 int currentTime;
 int color;
+bool greenNeoActive = false;
+bool redNeoActive = false;
 byte buf [6];
 
 void pixelFill(int startPixel, int endPixel, int hexColor);
@@ -64,14 +68,16 @@ TCPClient TheClient;
 
 Adafruit_MQTT_SPARK mqtt(&TheClient,AIO_SERVER,AIO_SERVERPORT,AIO_USERNAME,AIO_KEY); 
 
-int subValue,subValue2,subValue3;
+int subValue,subValue2,subValue3, subValue4;
 
 // Setup Feeds to publish or subscribe to Adafruit
 // Notice MQTT paths for AIO follow the form: <username>/feeds/<feedname> 
 Adafruit_MQTT_Subscribe neoPixel = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/green-light-button");
 Adafruit_MQTT_Subscribe neoPixel2 = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/red-light-button");
 Adafruit_MQTT_Subscribe neoPixel3 = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/rainbow-button");
-Adafruit_MQTT_Publish pubFeed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/RandomNumber");
+Adafruit_MQTT_Subscribe neoPixel4 = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/read-button");
+Adafruit_MQTT_Publish pubFeedR = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/rbuttonpress");
+Adafruit_MQTT_Publish pubFeedG = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/gbuttonpress");
 Adafruit_MQTT_Subscribe mqttColor = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/colorpicker");
 
 void MQTT_connect();
@@ -93,7 +99,7 @@ void setup() {
 
   delay(1000);
 
-  WiFi.setCredentials("DDCIOT","ddcIOT2020");
+WiFi.setCredentials("DDCIOT","ddcIOT2020");
 
   WiFi.on();
   WiFi.connect();
@@ -125,6 +131,7 @@ void setup() {
   mqtt.subscribe(&neoPixel);
   mqtt.subscribe(&neoPixel2);
   mqtt.subscribe(&neoPixel3);
+  mqtt.subscribe(&neoPixel4);
   mqtt.subscribe(&mqttColor);
 
 }
@@ -134,22 +141,18 @@ void loop() {
 // Adafruit connect and ping
     MQTT_connect();
     MQTT_ping();
+    mqtt.Update();
 
 // Mic read the digital interface
     digitalVal = digitalRead(digitalMicInt); 
   
     if(digitalVal == HIGH){
     digitalWrite(micLED, HIGH); // Turn ON test LED
+    micTimer.startTimer(2000);
     }
-    else{
-      digitalWrite(micLED, LOW);  // Turn OFF test LED
+    if(micTimer.isTimerReady()){
+      digitalWrite(micLED, LOW);
     }
-
-    // myTimer.startTimer(3000);
-    // if (myTimer.isTimerReady()){ 
-    // digitalWrite (micLED, LOW);
-    // myTimer.startTimer(3000);
-    // }
 
     // Read analog interface
     analogVal = analogRead(analogMicInt);
@@ -158,28 +161,43 @@ void loop() {
 
 //Neopixel, colors, buttons
 
-int currentTime = millis();
-
   if(REDBUTTON.isClicked()){
     for (PIXNUM = 0; PIXNUM < 16; PIXNUM ++){
       pixel.setPixelColor (PIXNUM, red);
-      pixel.show();
     }
-    myTimer.startTimer(3000);
+    pixel.show();
+    pubFeedR.publish(1);
+    redTimer.startTimer(2000);
+    redNeoActive = true;
   }
-  // if((currentTime - lastSecond)>2000){
-  //   lastSecond = millis();
-  //   pixel.setPixelColor (PIXNUM, black);
-  //   pixel.show();
-  //   pixel.clear();
-  //   }
+
+if (redNeoActive && redTimer.isTimerReady()) {
+    pubFeedR.publish(0);
+    for (PIXNUM = 0; PIXNUM < 16; PIXNUM++) {
+      pixel.setPixelColor(PIXNUM, 0);
+    }
+    pixel.show();
+    redNeoActive = false;
+  }
 
   if(GREENBUTTON.isClicked()){
     for (PIXNUM = 0; PIXNUM < 16; PIXNUM ++){
-      pixel.setPixelColor (PIXNUM, green);
-      pixel.show();
+    pixel.setPixelColor (PIXNUM, green);
     }
-    myTimer.startTimer(3000);
+    pixel.show();
+
+    pubFeedG.publish(1);
+    greenTimer.startTimer(2000);
+    greenNeoActive = true;
+  }
+  if (greenNeoActive && greenTimer.isTimerReady()) {
+    pubFeedG.publish(0);
+
+    for (PIXNUM = 0; PIXNUM < 16; PIXNUM++) {
+      pixel.setPixelColor(PIXNUM, 0);
+    }
+    pixel.show();
+    greenNeoActive = false;
   }
 
   Adafruit_MQTT_Subscribe *subscription;
@@ -251,6 +269,28 @@ int currentTime = millis();
           display.drawBitmap(0, 0,  bitmap_6iiz6q, 128, 64, 1);
           display.display();
           display.clearDisplay();
+      }
+      else{
+        for (PIXNUM = 0; PIXNUM < 16; PIXNUM ++){
+          pixel.setPixelColor (PIXNUM, black);
+          pixel.show();
+
+          display.display();
+          display.clearDisplay();
+        }
+      }
+    }
+    if (subscription == &neoPixel4) {
+      subValue4 = atof((char *)neoPixel4.lastread);
+      Serial.printf ("%f\n", subValue4);
+      if(subValue4 == 1){
+        for (PIXNUM = 0; PIXNUM < 16; PIXNUM ++){
+          pixel.setPixelColor (PIXNUM, blue);
+          pixel.show();
+        }
+        display.drawBitmap(0, 0, bitmap_oj0ngf, 128, 64, 1);
+        display.display();
+        display.clearDisplay();
       }
       else{
         for (PIXNUM = 0; PIXNUM < 16; PIXNUM ++){
